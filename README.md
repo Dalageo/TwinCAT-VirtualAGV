@@ -55,11 +55,11 @@ The AGV movement is enabled by a specific handshake protocol between the PLC and
 
 5. **Change the Target System in TwinCAT to UmRT_Default.**
    
-6. **Activate Configuration.**
-
-7. **Visualization Image Pool Setup**:
+6. **Visualization Image Pool Setup**:
     - In the Solution Explorer of `TwinCAT Virtual AGV.sln`, navigate to PLCStudent's VISUs and click on the `Display.TcIPO` Image Pool.
     - Set the correct file path for the image ID by navigating to the cloned directory: TwinCAT-VirtualAGV/Image Pool/Display.png.
+       
+7. **Activate Configuration.**
    
 8. **Login and Start both 'PLCSim' and 'PLCStudent'.**
   
