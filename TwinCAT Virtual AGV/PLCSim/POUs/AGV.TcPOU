@@ -1,0 +1,223 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4022.12">
+  <POU Name="AGV" Id="{dc8aef07-6856-4a02-8dea-525fff0e231a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK AGV
+
+VAR_INPUT
+	xStrobeIn:		BOOL;	(* strobe in *)
+	iGoToPos:		INT;	(* input go to position *)
+	iSpeed:			INT;	(* AGV speed *)
+END_VAR
+
+VAR_OUTPUT
+	xStrobeOut:		BOOL;	(* strobe out *)
+	iAtPos:			INT;	(* output at pos *)
+END_VAR
+
+VAR
+	iPhase:		 	INT;	(* phase in AGV handshake *)
+
+	iGoToPosOld: 	INT;	(* previous cycle value *)
+	iGoToReceived: 	INT;	(* saved value at rising edge of strobe in *)
+	iGoTo:			INT;	(* set target value and start move *)
+	iGoToPos_X: 	INT;	(* target X value *)
+	iGoToPos_Y: 	INT;	(* target Y value *)
+	iAtPos_X: 		INT;	(* actual X value *)
+	iAtPos_Y: 		INT;	(* actual Y value *)
+	iPos: 			INT;	(* actual pos, if any *)
+
+	xError: 		BOOL;	(* AGV in error state *)
+
+	fbStrobeOutR1: 	TON;	(* rising edge of strobe out when received message *)
+	fbStrobeOutF1: 	TON;	(* falling edge of strobe out when received message *)
+	fbStrobeOutR2: 	TON;	(* rising edge of strobe out when send message is set *)
+	fbStrobeOutF2: 	TON;	(* falling edge of strobe out when send message is set *)
+
+(* Define all Pos in X and Y *)
+	iAGVPosHome_X: 	INT := 500;
+	iAGVPosHome_Y: 	INT := 300;
+	iAGVPosA_X: 	INT := 800;
+	iAGVPosA_Y: 	INT := 0;
+	iAGVPosB_X: 	INT := 800;
+	iAGVPosB_Y: 	INT := 600;
+	iAGVPosC_X: 	INT := 200;
+	iAGVPosC_Y: 	INT := 600;
+	iAGVPosD_X: 	INT := 200;
+	iAGVPosD_Y: 	INT := 0;
+	iAGVPosError_X: INT := 0;
+	iAGVPosError_Y: INT := 300;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Function Block AGV
+// 20190118 v2_0 Bo Svensson University West
+
+CASE iPhase OF
+	(* ---- Handshake at receiving order ---- *)
+0:		(* read old value of goto pos at rising edge of PLC strobe *)
+	IF xStrobeIn AND (iGoToPosOld <> 0) AND ( iGoToPosOld <> iPos) THEN
+		iGoToReceived := iGoToPosOld;
+		iPhase := 10;
+	END_IF
+
+10:		(* send AGV strobe after read delay, indicate order received *)
+	IF fbStrobeOutR1.Q THEN
+		xStrobeOut := TRUE;
+		iPhase :=20;
+	ELSIF NOT xStrobeIn THEN
+		xError := TRUE;
+		iPhase := 500;
+	END_IF
+
+20:		(* wait for end of PLC strobe*)
+	IF NOT xStrobeIn THEN
+		iPhase := 30;
+	END_IF
+
+30:		(* send AGV ack after delay, indicate read order ended and activate AGV motion*)
+	IF fbStrobeOutF1.Q THEN
+		xStrobeOut := FALSE;
+		iGoTo := iGoToReceived;
+		iPhase := 40;
+	ELSIF  xStrobeIn THEN
+		xError := TRUE;
+		iPhase := 500;
+	END_IF
+
+	(* --- AGV moves and finally reach target ---- *)
+40:		(* set iAtPos when AGV stop moving *)
+	IF ((iPos = iGoTo) AND (iGoTo <> 0)) OR (iGoTo = 6) THEN
+		iAtPos := iPos;
+		iPhase := 50;
+	ELSIF (xStrobeIn AND (iGoToPosOld = 6))  THEN	(* instantly stop *)
+		iGoToReceived := 6;
+		iPhase := 10;
+	ELSIF (xStrobeIn AND NOT (iGoToPosOld = 6))  THEN
+		xError := TRUE;
+		iPhase := 500;
+	END_IF
+
+	(* --- Handshake at answer --- *)
+50:		(* send AGV strobe after delay, indicate target reached *)
+	IF fbStrobeOutR2.Q THEN
+		xStrobeOut := TRUE;
+		iPhase := 60;
+	ELSIF xStrobeIn THEN
+		xError := TRUE;
+		iPhase := 500;
+	END_IF
+
+60:		(* wait for PLC strobe *)
+	IF  xStrobeIn AND (iGoToPosOld = 0) THEN
+		iPhase := 70;
+	END_IF
+
+70:		(* remove AGV strobe and at pos after delay, indicating answer ready *)
+	IF fbStrobeOutF2.Q THEN
+		xStrobeOut := FALSE;
+		iAtPos := 0;
+		iPhase := 80;
+	ELSIF NOT xStrobeIn THEN
+		xError := TRUE;
+		iPhase := 500;
+	END_IF
+
+80:		(* wait for end of PLC strobe *)
+	IF  NOT xStrobeIn THEN
+		iPhase := 0;
+	END_IF
+
+	(* --- Error state --- *)
+500: 	(* goto error and do nothing more *)
+	iGoTo := 100;
+END_CASE
+
+(* all timer block for iPhase states *)
+fbStrobeOutR1(IN := xStrobeIn AND (iPhase = 10), PT := T#1S);
+fbStrobeOutF1(IN := NOT xStrobeIn AND (iPhase = 30), PT := T#1S);
+fbStrobeOutR2(IN := NOT xStrobeIn AND (iPhase = 50), PT := T#1S);
+fbStrobeOutF2(IN := xStrobeIn AND (iPhase = 70), PT := T#1S);
+
+
+(* ---- Set goto X and Y pos and move AGV ---- *)
+CASE iGoTo OF
+0:	(* Do nothing *)
+	iGoToPos_X := iGoToPos_X;
+	iGoToPos_Y := iGoToPos_Y;
+
+1:	(* GoToHome *)
+	iGoToPos_X := iAGVPosHome_X;
+	iGoToPos_Y := iAGVPosHome_Y;
+
+2:	(* GoToA *)
+	iGoToPos_X := iAGVPosA_X;
+	iGoToPos_Y := iAGVPosA_Y;
+
+3:	(* GoToB *)
+	iGoToPos_X := iAGVPosB_X;
+	iGoToPos_Y := iAGVPosB_Y;
+
+4:	(* GoToC *)
+	iGoToPos_X := iAGVPosC_X;
+	iGoToPos_Y := iAGVPosC_Y;
+
+5:	(* GoToD *)
+	iGoToPos_X := iAGVPosD_X;
+	iGoToPos_Y := iAGVPosD_Y;
+
+6:	(* Stop instantly *)
+	iGoToPos_X := iAtPos_X;
+	iGoToPos_Y := iAtPos_Y;
+
+ELSE	(* GoToError *)
+	iAtPos_X := iAGVPosError_X;
+	iAtPos_Y := iAGVPosError_Y;
+	xError := TRUE;
+END_CASE
+
+
+(* ---- AGV motion ---- *)
+IF iAtPos_X < iGoToPos_X THEN
+	iAtPos_X := iAtPos_X + iSpeed;
+ELSIF iAtPos_X > iGoToPos_X THEN
+	iAtPos_X := iAtPos_X - iSpeed;
+END_IF
+
+IF iAtPos_Y < iGoToPos_Y THEN
+	iAtPos_Y := iAtPos_Y + iSpeed;
+ELSIF iAtPos_Y > iGoToPos_Y THEN
+	iAtPos_Y := iAtPos_Y - iSpeed;
+END_IF
+
+
+(* ---  AGV actual position --- *)
+IF iAtPos_X = iAGVPosHome_X AND iAtPos_Y = iAGVPosHome_Y THEN
+	iPos := 1;		(* Pos Home *)
+ELSIF iAtPos_X = iAGVPosA_X AND iAtPos_Y = iAGVPosA_Y THEN
+	iPos := 2;		(* Pos A *)
+ELSIF iAtPos_X = iAGVPosB_X AND iAtPos_Y = iAGVPosB_Y THEN
+	iPos := 3;		(* Pos B *)
+ELSIF iAtPos_X = iAGVPosC_X AND iAtPos_Y = iAGVPosC_Y THEN
+	iPos := 4;		(* Pos C *)
+ELSIF iAtPos_X = iAGVPosD_X AND iAtPos_Y = iAGVPosD_Y THEN
+	iPos := 5;		(* Pos D *)
+ELSIF iGoTo = 6 THEN
+	iPos := 6;		(* Instant stop not at any pos *)
+ELSE
+	iPos := 0;		(* Not at any Pos *)
+END_IF
+
+
+(* save goto pos input value to next turn *)
+iGoToPosOld := iGoToPos;
+]]></ST>
+    </Implementation>
+    <LineIds Name="AGV">
+      <LineId Id="9" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="53" Count="157" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

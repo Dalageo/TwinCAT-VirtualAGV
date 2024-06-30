@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PositionDisplay" Id="{9c2068db-8fe4-4940-bd23-43a9e6b51a58}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_PositionDisplay
+VAR_INPUT
+	Position : STRING;
+END_VAR
+VAR_OUTPUT
+	ixDisplay : INT;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF Position = 'HOME' THEN
+	ixDisplay := 1;
+ELSIF Position  = 'Pos A' THEN
+	ixDisplay := 2;
+ELSIF Position  = 'Pos B' THEN
+	ixDisplay := 3;
+ELSIF Position  = 'Pos C' THEN
+	ixDisplay := 4;
+ELSIF Position  = 'Pos D' THEN
+	ixDisplay := 5;
+ELSE
+	ixDisplay := 0;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_PositionDisplay">
+      <LineId Id="11" Count="12" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

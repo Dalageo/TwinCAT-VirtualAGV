@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL" Id="{816111f0-16ef-4f4d-a70e-f3df38e5b1aa}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+//Input to PLC from process
+	ixAGVStrobe		AT %I*:	BOOL;	(* AGV strobe signal *)
+	iiAtPos			AT %I*:	INT;	(* Actual position of AGV *)
+	qxStartButton   AT %Q*: BOOL;   (* Start Button*)
+	qxStopButton    AT %Q*: BOOL;   (* Stop Button*)
+	qxResetButton   AT %Q*: BOOL;   (* Reset Button*)
+	
+//Output from PLC to process
+	qxPLCStrobe		AT %Q*:	BOOL;	(* PLC strobe signal *)
+	qiGotoPos		AT %Q*:	INT;	(* Target position for AGV *)
+
+// Additional global variables
+	ixAGVMoving     AT %I*: BOOL;   (* AGV Moving*)
+	ixAGVLoc        AT %I*: STRING; (* AGV Location*)
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>
