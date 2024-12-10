@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/github/stars/Dalageo/TwinCat-VirtualAGV?style=social" alt="GitHub stars">
 </div>
 
-# Simulating an Automatic Guided Vehicle (AGV) with Handshake Communication Protocol Using TwinCAT PLC Programming
+# Simulating an Automatic Guided Vehicle (AGV) with Handshake Communication Protocol Using TwinCAT PLC Programming 🚗
 
 This repository contains a simulation project for an Automatic Guided Vehicle (AGV), developed within the <a href="https://www.beckhoff.com/en-en/products/automation/twincat/"> TwinCAT </a> environment as part of a master's course assignment <a href="https://www.hv.se/en/">University West</a>. The assignment involves developing a Human-Machine Interface (HMI) that controls the operation of the AGV by following the specified handshake protocol between the PLC and the AGV. In this project, `AGVSimulator.TcVIS` visualization, `AGV.TcPOU` Function Block, and `Process.TcPOU` were provided by the university. The designed Virtual AGV includes the following functionalities:
 
